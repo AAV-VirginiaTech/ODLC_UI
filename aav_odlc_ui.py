@@ -78,11 +78,16 @@ def load_imgs(): # Load All Images
 # ------------------------------------------------------------------------------------------------------------------
 
 def save_data(): # Save JSON and Cropped Images
-    global crop_idx
     
-    # Create Folder if Non-Existent
+    crop_idx = 1 # Initialize Variable
+
+    # Get Number of Previous Crops or Create Folder if Non-Existent
     if not os.path.isdir(path_crops):
         os.mkdir(path_crops)
+    else:
+        for file in os.listdir(path_crops):
+            crop_num = int(file.partition('.')[0])
+            crop_idx = crop_num + 1
     
     # Set File Name and Save Cropped Image as PNG
     img_ext = "png"
@@ -209,7 +214,6 @@ imgs_full = []
 imgs_scale = []
 imgs_comp = []
 img_idx = 0
-crop_idx = 1
 img_cent_x = img_cent_y = 0
 
 # Load Files and Setup Directories
