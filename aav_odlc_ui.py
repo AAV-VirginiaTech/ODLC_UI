@@ -124,7 +124,7 @@ def save_data(): # Save JSON and Cropped Images
         
     # Format JSON Data into Dictionary
     json_new = {
-            "mission": mission_id
+            "mission": mission_id,
             "type": "STANDARD", 
             "latitude": obj_lat, 
             "longitude": obj_long, 
