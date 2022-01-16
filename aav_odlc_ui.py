@@ -3,6 +3,8 @@ from PIL import ImageTk,Image
 import os
 import json
 import math
+import exifread
+from pyproj import Proj
 
 # User Input Variables
 obj_size = 100 # Approximate Size of Objects (in Pixels)
@@ -19,7 +21,7 @@ obj_alpha_color_list = obj_color_list
 def next_img(): # Next Image (UI)
     global img_idx, img_ui, img_comp_ui
     
-    img_idx += 1 # Iterate Counter
+    img_idx += 1
     
     # Display New Image and Compass
     img_ui = ImageTk.PhotoImage(imgs_scale[img_idx])
@@ -28,20 +30,18 @@ def next_img(): # Next Image (UI)
     img_comp_ui = ImageTk.PhotoImage(imgs_comp[img_idx])
     label_comp.config(image=img_comp_ui)
     
-    # Allocate Button State Based on Start/End of Image Set
+    # Allocate Button State Based on Current Image
     if img_idx == len(imgs)-1:
         next_btn["state"] = DISABLED
     else:
         next_btn["state"] = NORMAL
         
-    prev_btn["state"] = NORMAL # Enable Previous Button
-    
-# ------------------------------------------------------------------------------------------------------------------
-    
+    prev_btn["state"] = NORMAL
+        
 def prev_img(): # Previous Image (UI)
     global img_idx, img_ui, img_comp_ui
     
-    img_idx -= 1 # Iterate Counter
+    img_idx -= 1
     
     # DIsplay New Image and Compass
     img_ui = ImageTk.PhotoImage(imgs_scale[img_idx])
@@ -50,44 +50,62 @@ def prev_img(): # Previous Image (UI)
     img_comp_ui = ImageTk.PhotoImage(imgs_comp[img_idx])
     label_comp.config(image=img_comp_ui)
     
-    # Allocate Button State Based on Start/End of Image Set
+    # Allocate Button State Based on Current Image
     if img_idx == 0:
         prev_btn["state"] = DISABLED    
     else:
         prev_btn["state"] = NORMAL
     
-    next_btn["state"] = NORMAL # Enable Next Button
+    next_btn["state"] = NORMAL
 
-# ------------------------------------------------------------------------------------------------------------------
+def dropdown(dropdown_list, frame, desc): # Create Dropdown Box
+    dropdown_var = StringVar(ui)
+    dropdown_var.set(dropdown_list[0]) # Default Value
+    
+    dropdown = OptionMenu(frame, dropdown_var, *dropdown_list)
+    dropdown.config(width=10)
+    
+    dropdown_label = Label(frame, text = desc)
+    
+    obj_dict = {"list": dropdown_list, "var": dropdown_var, "dropdown": dropdown, "label": dropdown_label}
+
+    return obj_dict
+
+def double_click(click):
+    global click_x, click_y
+
+    click_x, click_y = click.x, click.y
+    
+    zoom_img(True) # Required for Zoom Method
 
 def load_imgs(): # Load All Images
-    imgs = [] # Create Empty Vector
+
+    # Load and Scale Compass Image
+    img_comp = Image.open(path_comp)
+    comp_size = int(display_height/5)
+    img_comp_scale = img_comp.resize((comp_size, comp_size))
     
-    # Load Files
+    # Load Raw Images and Metadata
     for file in os.listdir(path_raw):
         file_path = os.path.join(path_raw, file) 
         file_name, file_ext = os.path.splitext(file_path)
                 
-        # Only Add Images to Vector
+        # Ignore Non-Image Files
         if file_ext in img_types:
             img = Image.open(file_path)
             imgs.append(img)
-                  
-    return imgs
+   
+        # Read Image Metadata
+        craft_heading = 43
 
-# ------------------------------------------------------------------------------------------------------------------
+        # Rotate and Pair Compass Image to Each Raw Image
+        img_comp_rot = img_comp_scale.rotate(-craft_heading, expand = True)
+        imgs_comp.append(img_comp_rot)
+           
+    return imgs, imgs_comp
 
 def save_data(): # Save JSON and Cropped Images
-    
-    crop_idx = 1 # Initialize Variable
-
-    # Get Number of Previous Crops or Create Folder if Non-Existent
-    if not os.path.isdir(path_crops):
-        os.mkdir(path_crops)
-    else:
-        for file in os.listdir(path_crops):
-            crop_num = int(file.partition('.')[0])
-            crop_idx = crop_num + 1
+    global crop_idx
     
     # Set File Name and Save Cropped Image as PNG
     img_ext = "png"
@@ -95,7 +113,7 @@ def save_data(): # Save JSON and Cropped Images
     img_zoom.save(img_name, img_ext)
 
     # Localize Object
-    obj_lat, obj_long = obj_loc()
+    obj_lat, obj_long = obj_loc(img_cent_x, img_cent_y)
     
     # Create JSON for Classifier
     json_name = str(path_crops) + str(crop_idx) + ".json"
@@ -121,11 +139,10 @@ def save_data(): # Save JSON and Cropped Images
     
     reset() # Reset Image View
 
-# ------------------------------------------------------------------------------------------------------------------
-
 def zoom_img(on_click): # Zoom on Images
     global img_zoom, img_zoom_ui, img_cent_x, img_cent_y
     
+    # Load Images and Respective Sizes
     img_full = imgs_full[img_idx]
     img_scale = imgs_scale[img_idx]
     img_full_width, img_full_height = img_full.size
@@ -137,7 +154,7 @@ def zoom_img(on_click): # Zoom on Images
     img_marg = (obj_size)/zoom_val # Bounds (in Pixels) Adjusted for Zoom
         
     # Calculate Image Position from Mouse Click
-    img_full_scale_ratio = img_full_height/img_scale_height # Get Ratio from Full to scale
+    img_full_scale_ratio = img_full_height/img_scale_height
 
     if img_zoom_width != img_zoom_height and on_click == True:     
         img_cent_x, img_cent_y = click_x*img_full_scale_ratio, click_y*img_full_scale_ratio
@@ -150,84 +167,107 @@ def zoom_img(on_click): # Zoom on Images
     img_cent_y = min((max(img_marg, img_cent_y)),(img_full_height-img_marg))
     
     # Set Bounds Around Center of Object
-    left = img_cent_x - img_marg
-    right = img_cent_x + img_marg
-    upper = img_cent_y - img_marg
-    lower = img_cent_y + img_marg
+    img_left = img_cent_x - img_marg
+    img_right = img_cent_x + img_marg
+    img_upper = img_cent_y - img_marg
+    img_lower = img_cent_y + img_marg
         
     # Create New Zoomed Image
-    img_zoom = img_full.crop([left, upper, right, lower]) # Crop Based on Bounds
+    img_zoom = img_full.crop([img_left, img_upper, img_right, img_lower]) # Crop Based on Bounds
     img_zoom = img_zoom.resize((img_scale_height, img_scale_height)) # Resize to Square (UI)
     
     # Display Zoomed Image on GUI
     img_zoom_ui = ImageTk.PhotoImage(img_zoom)
     label_img.config(image=img_zoom_ui)
     
-# ------------------------------------------------------------------------------------------------------------------
-
 def reset(): # Reset Zoom on Image    
-    global img_ui , img_zoom
+    global img_ui, img_zoom
     
     # Display Current Image (Zoomed Out)
     img_zoom = imgs_scale[img_idx]
     img_ui = ImageTk.PhotoImage(img_zoom)
     label_img.config(image=img_ui)
 
-# ------------------------------------------------------------------------------------------------------------------
+def obj_loc(img_cent_x, img_cent_y): # Localize Objects
 
-def obj_loc(): # Localize Objects
-    obj_lat = 37
-    obj_long = 80
-    obj_comp = 40
-    
-    return obj_lat, obj_long
+    # Initialize Camera Variables (Manual)
+    cam_fov_hor = 69.98 # Degrees
+    cam_fov_hor = math.radians(cam_fov_hor) # Radians
 
-# ------------------------------------------------------------------------------------------------------------------
+    # Get Aircraft Data
+    craft_lat = 37.1970694
+    craft_lon = -80.5781355
+    craft_alt = 70.3 # Meters
+    craft_comp = (360-44.5)
+    craft_comp = math.radians(-craft_comp) # Convert to Radians and Negate
 
-def double_click(click):
-    global click_x, click_y
+    # Convert Craft UTM Position to XY Position
+    utm_zone = math.floor((craft_lon + 180)/6) + 1
+    utm_xy_conv = Proj(proj='utm',zone=utm_zone, ellps='WGS84')
+    craft_x, craft_y = utm_xy_conv(craft_lon, craft_lat)
 
-    click_x, click_y = click.x, click.y
-    
-    zoom_img(True) # Set to True for On Click (Int via Slider)
-    
-# ------------------------------------------------------------------------------------------------------------------
+    # Calculate Ground Sampling Distance (m/pix)
+    img_width_meter = craft_alt*2*math.tan(cam_fov_hor/2)
 
-def dropdown(dropdown_list, frame, desc): # Create Dropdown Box
-    dropdown_var = StringVar(ui)
-    dropdown_var.set(dropdown_list[0]) # Default Value
-    
-    dropdown = OptionMenu(frame, dropdown_var, *dropdown_list)
-    dropdown.config(width=10)
-    
-    dropdown_label = Label(frame, text = desc)
-    
-    obj_dict = {"list": dropdown_list, "var": dropdown_var, "dropdown": dropdown, "label": dropdown_label}
+    img_full = imgs_full[img_idx]
+    img_full_width, img_full_height = img_full.size
 
-    return obj_dict
+    img_gsd = img_width_meter/img_full_width
+
+    # Calculate Distance Between Object and Image Center
+    obj_dist_x = (img_cent_x - img_full_width/2)*img_gsd
+    obj_dist_y = -(img_cent_y - img_full_height/2)*img_gsd
+
+    obj_dist_E = math.cos(craft_comp)*obj_dist_x - math.sin(craft_comp)*obj_dist_y
+    obj_dist_N = math.sin(craft_comp)*obj_dist_x + math.cos(craft_comp)*obj_dist_y
+
+    # Calculate Position of Object
+    obj_x, obj_y = (craft_x + obj_dist_E), (craft_y + obj_dist_N)
+    obj_lon, obj_lat = utm_xy_conv(obj_x, obj_y, inverse=True)
+
+    return obj_lat, obj_lon
 
 # ------------------------------------------------------------------------------------------------------------------
 
 # Initialize Variables
 obj_alpha = {}
+imgs = []
 imgs_full = []
 imgs_scale = []
 imgs_comp = []
 img_idx = 0
 img_cent_x = img_cent_y = 0
+crop_idx = 1
 
 # Load Files and Setup Directories
 path_raw = "/Raw_Images/"
 path_crops = "/Cropped_Images/"
+path_comp = "/compass.png"
 
-path_crops = str(os.getcwd()) + path_crops
-path_raw = str(os.getcwd()) + path_raw
-imgs = load_imgs()
+path_raw = os.getcwd() + path_raw
+path_crops = os.getcwd() + path_crops
+path_comp = os.getcwd() + path_comp
+
+# Get Number of Previous Crops or Create Folder if Non-Existent
+if not os.path.isdir(path_crops):
+    os.mkdir(path_crops)
+else:
+    for file in os.listdir(path_crops):
+        crop_num = int(file.partition('.')[0])
+        if crop_num > crop_idx: # Only Increases
+            crop_idx = crop_num + 1
 
 # Initialize UI   
 ui = Tk()
 ui.title("AAV Image Classifier")
 ui.resizable(0, 0) # Lock UI Size
+
+# Get Display Size Info (UI Scaling)
+display_height = int(ui.winfo_screenheight())
+display_width = int(ui.winfo_screenwidth())
+
+# Load Images
+imgs, imgs_comp = load_imgs()
 
 # Create Frames (Image, Entry Elements, Buttons) and Open UI
 frame_ui = Frame(ui) # Image Frame
@@ -237,10 +277,6 @@ frame_object = Frame(ui) # Object Frame
 
 frame_ui.grid() # Open UI
 
-# Get Display Size Info (UI Scaling)
-display_height = int(ui.winfo_screenheight())
-display_width = int(ui.winfo_screenwidth())
-
 # Create List of Images
 for idx, img in enumerate(imgs):
     # Resize Image for UI Display (Controls Overall Window Size)
@@ -249,24 +285,11 @@ for idx, img in enumerate(imgs):
     ui_img_width = int(ui_img_height*(img_width/img_height))
     
     img_scale = img.resize((ui_img_width, ui_img_height))
-    img_zoom = img_scale # Zoom and scale Image Equal on Initial Boot
+    img_zoom = img_scale # Zoom and Scale Image Equal on Initial Boot
     
     # Append to List of Running Images
     imgs_scale.append(img_scale)
     imgs_full.append(img)
-
-# Create List of Compass Images
-comp_path = os.getcwd() + "\compass.png"
-img_comp = Image.open(comp_path) 
-
-for idx, img in enumerate(imgs):
-    ang = 43*(idx+1)
-    comp_size = int(display_height/5) # Scale Image at Different Angles
-
-    img_comp_scale = img_comp.resize((comp_size, comp_size)) # Resize for UI
-    img_comp_rot = img_comp_scale.rotate(-ang, expand = True) # Rotate Based on Aircraft Compass
-    
-    imgs_comp.append(img_comp_rot) # Append to List of Running Compass Images
  
 # ------------------------------------------------------------------------------------------------------------------
 
