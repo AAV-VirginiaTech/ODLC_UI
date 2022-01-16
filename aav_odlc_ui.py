@@ -17,7 +17,7 @@ obj_color_list = sorted(["RED", "GREEN", "BLUE", "BROWN", "BLACK", "YELLOW", "OR
 obj_alpha_color_list = obj_color_list
 
 # Ask for Misison ID
-mission_id = int(input("What is the Mission ID"))
+mission_id = int(input("What is the Mission ID: "))
 
 # ------------------------------------------------------------------------------------------------------------------
 
@@ -130,9 +130,9 @@ def save_data(): # Save JSON and Cropped Images
             "longitude": obj_long, 
             "orientation": obj_orient["var"].get(),
             "shape": obj_shape["var"].get(), 
-            "background_color": obj_color["var"].get(), 
+            "shapeColor": obj_color["var"].get(), 
             "alphanumeric": obj_alpha["entry"].get(), 
-            "alphanumeric_color": obj_alpha_color["var"].get()}
+            "alphanumericColor": obj_alpha_color["var"].get()}
     
     # Convert to and Save as JSON
     json_new = json.dumps(json_new)
