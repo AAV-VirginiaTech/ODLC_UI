@@ -12,9 +12,12 @@ img_types = (".jpg", ".png") # Allowed Image Types (Raw)
 
 # List of Acceptable Entries (Update From Interop)
 obj_orient_list = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-obj_shape_list = sorted(["RECTANGLE", "SQUARE", "CROSS", "STAR", "CIRCLE", "SEMI-CIRCLE", "PENTAGON", "HEXAGON", "OCTAGON", "TRAPEZOID"])
+obj_shape_list = sorted(["RECTANGLE", "SQUARE", "CROSS", "STAR", "CIRCLE", "SEMI-CIRCLE", "PENTAGON", "HEXAGON", "OCTAGON", "TRAPEZOID", "TRIANGLE"])
 obj_color_list = sorted(["RED", "GREEN", "BLUE", "BROWN", "BLACK", "YELLOW", "ORANGE", "GRAY", "PURPLE", "WHITE"])
 obj_alpha_color_list = obj_color_list
+
+# Ask for Misison ID
+mission_id = int(input("What is the Mission ID"))
 
 # ------------------------------------------------------------------------------------------------------------------
 
@@ -121,7 +124,8 @@ def save_data(): # Save JSON and Cropped Images
         
     # Format JSON Data into Dictionary
     json_new = {
-            "type": "Standard", 
+            "mission": mission_id
+            "type": "STANDARD", 
             "latitude": obj_lat, 
             "longitude": obj_long, 
             "orientation": obj_orient["var"].get(),
