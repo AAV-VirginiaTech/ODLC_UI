@@ -254,7 +254,7 @@ if not os.path.isdir(path_crops):
 else:
     for file in os.listdir(path_crops):
         crop_num = int(file.partition('.')[0])
-        if crop_num > crop_idx: # Only Increases
+        if crop_num >= crop_idx: # Only Increases
             crop_idx = crop_num + 1
 
 # Initialize UI   
