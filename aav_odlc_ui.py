@@ -131,7 +131,7 @@ def save_data(): # Save JSON and Cropped Images
             "orientation": obj_orient["var"].get(),
             "shape": obj_shape["var"].get(), 
             "shapeColor": obj_color["var"].get(), 
-            "alphanumeric": obj_alpha["entry"].get(), 
+            "alphanumeric": (obj_alpha["entry"].get()).upper(), 
             "alphanumericColor": obj_alpha_color["var"].get()}
     
     # Convert to and Save as JSON
