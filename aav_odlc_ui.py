@@ -11,9 +11,9 @@ obj_size = 100 # Approximate Size of Objects (in Pixels)
 img_types = (".jpg", ".png") # Allowed Image Types (Raw)
 
 # List of Acceptable Entries (Update From Interop)
-obj_orient_list = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
-obj_shape_list = sorted(["RECTANGLE", "SQUARE", "CROSS", "STAR", "CIRCLE", "SEMI-CIRCLE", "PENTAGON", "HEXAGON", "OCTAGON", "TRAPEZOID", "TRIANGLE"])
-obj_color_list = sorted(["RED", "GREEN", "BLUE", "BROWN", "BLACK", "YELLOW", "ORANGE", "GRAY", "PURPLE", "WHITE"])
+obj_orient_list = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+obj_shape_list = sorted(("RECTANGLE", "SQUARE", "CROSS", "STAR", "CIRCLE", "SEMI-CIRCLE", "PENTAGON", "HEXAGON", "OCTAGON", "TRAPEZOID", "TRIANGLE"))
+obj_color_list = sorted(("RED", "GREEN", "BLUE", "BROWN", "BLACK", "YELLOW", "ORANGE", "GRAY", "PURPLE", "WHITE"))
 obj_alpha_color_list = obj_color_list
 
 # Ask for Misison ID
